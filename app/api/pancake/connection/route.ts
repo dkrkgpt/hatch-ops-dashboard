@@ -1,21 +1,8 @@
-import { env } from "cloudflare:workers";
-
-type PancakeEnv = Record<string, string | undefined>;
-
-function configuredPages() {
-  const config = env as unknown as PancakeEnv;
-  return Array.from({ length: 8 }, (_, index) => {
-    const number = index + 1;
-    return {
-      number,
-      pageId: config[`PANCAKE_PAGE_${number}_ID`],
-      token: config[`PANCAKE_PAGE_${number}_TOKEN`],
-    };
-  });
-}
+import { configuredPages } from "../../../../lib/pancake";
 
 export async function GET() {
-  const pages = configuredPages();
+  const configured = configuredPages();
+  const pages = Array.from({ length: 8 }, (_, index) => configured.find((page) => page.number === index + 1) ?? { number: index + 1, pageId: "", token: "" });
   return Response.json({
     configured: pages.filter((page) => page.pageId && page.token).length,
     total: pages.length,
@@ -43,11 +30,13 @@ export async function POST() {
 
       try {
         const response = await fetch(url, { headers: { Accept: "application/json" } });
+        const payload = await response.json().catch(() => null) as { success?: boolean; message?: string } | null;
+        const ok = response.ok && payload?.success !== false;
         return {
           number,
           pageId,
-          ok: response.ok,
-          error: response.ok ? null : `Pancake returned ${response.status}`,
+          ok,
+          error: ok ? null : payload?.message ?? `Pancake returned ${response.status}`,
         };
       } catch {
         return { number, pageId, ok: false, error: "Connection failed" };
@@ -58,4 +47,3 @@ export async function POST() {
   const connected = results.filter((result) => result.ok).length;
   return Response.json({ ok: connected === pages.length, connected, total: pages.length, pages: results });
 }
-
