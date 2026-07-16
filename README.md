@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.6 seconds
-Output:
 # vinext-starter
 
 A clean full-stack starter running on
