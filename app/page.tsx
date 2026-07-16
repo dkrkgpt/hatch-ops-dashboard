@@ -65,15 +65,19 @@ export default function Home() {
               setSyncLabel("Checkingâ€¦");
               try {
                 const response = await fetch("/api/pancake/connection", { method: "POST" });
-                const result = await response.json() as { ok?: boolean };
+                const result = await response.json() as { ok?: boolean; connected?: number; total?: number };
                 setSynced(Boolean(result.ok));
-                setSyncLabel(result.ok ? "Connected" : "Token required");
+                setSyncLabel(
+                  typeof result.connected === "number" && typeof result.total === "number"
+                    ? `${result.connected}/${result.total} connected`
+                    : result.ok ? "Connected" : "Token required",
+                );
               } catch { setSyncLabel("Connection unavailable"); }
             }}>{syncLabel}</button>
           </div>
         </header>
 
-        <div className="notice"><span className="pulse"/><strong>Pancake data layer prepared</strong><p>Lead storage, stage history, conflict detection, and the connection test are ready. Add the page token securely to begin synchronization.</p></div>
+        <div className="notice"><span className="pulse"/><strong>Pancake data layer prepared</strong><p>Lead storage, stage history, conflict detection, and connection checks are ready for all eight pages.</p></div>
 
         <section className="kpis" aria-label="Key performance indicators">
           <article><span>New customers</span><strong>240</strong><small className="positive">â†‘ 12.1% vs prior period</small></article>
