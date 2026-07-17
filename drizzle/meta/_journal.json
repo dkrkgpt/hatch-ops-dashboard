@@ -8,6 +8,27 @@
       "when": 1784104862123,
       "tag": "0000_dizzy_sage",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784184000000,
+      "tag": "0001_pancake_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784270400000,
+      "tag": "0002_dashboard_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784356800000,
+      "tag": "0003_sync_lock",
+      "breakpoints": true
     }
   ]
 }

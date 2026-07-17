@@ -24,6 +24,7 @@ export const leads = sqliteTable("leads", {
   locationTags: text("location_tags").notNull().default("[]"),
   followUpStatus: text("follow_up_status"),
   assignedAgentId: text("assigned_agent_id"),
+  assignedAgentName: text("assigned_agent_name"),
   firstInboundAt: text("first_inbound_at"),
   lastInteractionAt: text("last_interaction_at"),
   stageChangedAt: text("stage_changed_at"),
@@ -36,6 +37,10 @@ export const leads = sqliteTable("leads", {
   uniqueIndex("lead_page_conversation_unique").on(table.pancakePageId, table.conversationId),
   index("lead_stage_idx").on(table.stage),
   index("lead_follow_up_idx").on(table.nextFollowUpAt),
+  index("lead_last_interaction_idx").on(table.lastInteractionAt),
+  index("lead_page_idx").on(table.pancakePageId),
+  index("lead_agent_idx").on(table.assignedAgentId),
+  index("lead_sold_at_idx").on(table.soldAt),
 ]);
 
 export const stageEvents = sqliteTable("stage_events", {
@@ -56,5 +61,22 @@ export const syncRuns = sqliteTable("sync_runs", {
   conversationsRead: integer("conversations_read").notNull().default(0),
   leadsUpdated: integer("leads_updated").notNull().default(0),
   errorMessage: text("error_message"),
+});
+
+export const pancakeBackfillState = sqliteTable("pancake_backfill_state", {
+  pageId: text("page_id").primaryKey(),
+  cursor: text("cursor"),
+  oldestAt: text("oldest_at"),
+  cutoffAt: text("cutoff_at").notNull(),
+  conversationsImported: integer("conversations_imported").notNull().default(0),
+  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const syncLock = sqliteTable("sync_lock", {
+  id: integer("id").primaryKey(),
+  acquiredAt: text("acquired_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  source: text("source").notNull(),
 });
 

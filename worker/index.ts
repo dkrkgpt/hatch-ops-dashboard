@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { runPancakeSync } from "../lib/sync-pancake";
 
 interface Env {
   ASSETS: Fetcher;
@@ -12,6 +13,7 @@ interface Env {
       };
     };
   };
+  [key: string]: unknown;
 }
 
 interface ExecutionContext {
@@ -41,6 +43,13 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    const pages = Array.from({ length: 8 }, (_, index) => {
+      const number = index + 1;
+      return { number, pageId: String(env[`PANCAKE_PAGE_${number}_ID`] ?? ""), token: String(env[`PANCAKE_PAGE_${number}_TOKEN`] ?? "") };
+    }).filter((page) => page.pageId && page.token);
+    ctx.waitUntil(runPancakeSync(env.DB, pages, "scheduled"));
   },
 };
 

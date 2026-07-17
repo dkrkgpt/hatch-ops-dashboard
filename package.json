@@ -10,7 +10,7 @@
     "build": "vinext build",
     "deploy": "vinext deploy --name hatch-ops-dashboard",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "node --test tests/dashboard-source.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
