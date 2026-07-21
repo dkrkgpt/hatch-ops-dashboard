@@ -6,6 +6,7 @@ type RangeKey = "7d" | "30d" | "90d" | "180d";
 type DashboardData = {
   range: { key: RangeKey; days: number; cutoff: string; end?: string; custom?: boolean };
   selectedPage: string;
+  selectedPlatform?: string;
   summary: { total: number; sold: number; attention: number; unclassified: number; untagged: number; conflicts: number; unassigned: number; comments: number; connected: number; pages: number };
   previous: { total: number; sold: number; unclassified: number; untagged: number; conflicts: number; attention: number; unassigned: number };
   changes: Record<string, number | null>;
@@ -16,6 +17,7 @@ type DashboardData = {
   trend: Array<{ day: string; conversations: number; sold: number }>;
   pageHealth: Array<{ id: string; name: string; last_synced_at?: string; status: string; error_message?: string }>;
   pagePerformance: Array<{ pancake_page_id: string; name: string; conversations: number; sold: number; untagged: number; unassigned: number }>;
+  platformPerformance?: Array<{ platform: string; conversations: number; sold: number; unassigned: number }>;
   unclassifiedReasons: Array<{ reason: string; value: number }>;
   sync?: { finished_at?: string; status?: string; error_message?: string } | null;
 };
@@ -30,6 +32,7 @@ type LeadDetail = { pancake_page_id: string; page_name: string; conversation_id:
 export default function Home() {
   const [range, setRange] = useState<RangeKey>("180d");
   const [selectedPage, setSelectedPage] = useState("all");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [data, setData] = useState<DashboardData>(emptyData);
@@ -40,10 +43,10 @@ export default function Home() {
   const [details, setDetails] = useState<{ status: string; rows: LeadDetail[] } | null>(null);
 
   const reportParams = useCallback((selectedRange: RangeKey = range) => {
-    const params = new URLSearchParams({ range: selectedRange, page: selectedPage });
+    const params = new URLSearchParams({ range: selectedRange, page: selectedPage, platform: selectedPlatform });
     if (startDate && endDate) { params.set("start", startDate); params.set("end", endDate); }
     return params.toString();
-  }, [range, selectedPage, startDate, endDate]);
+  }, [range, selectedPage, selectedPlatform, startDate, endDate]);
 
   const load = useCallback(async (selectedRange: RangeKey = range) => {
     const response = await fetch(`/api/dashboard?${reportParams(selectedRange)}`, { cache: "no-store" });
@@ -122,7 +125,7 @@ export default function Home() {
 
     <section className="workspace" id="overview">
       <header className="topbar">
-        <div><p className="eyebrow">Live sales workspace</p><h1>Business overview</h1><p>Sales performance across your eight Pancake pages.</p></div>
+        <div><p className="eyebrow">Live sales workspace</p><h1>Business overview</h1><p>Sales performance across every connected messaging and lead platform.</p></div>
         <div className="topActions"><button className="historyButton" onClick={backfill} disabled={backfilling || syncing}>{backfilling ? "Importing history…" : "Resume 6-month history"}</button><button className="syncButton" onClick={sync} disabled={syncing || backfilling}>{syncing ? "Importing…" : "Refresh data"}</button></div>
       </header>
 

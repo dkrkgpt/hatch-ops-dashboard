@@ -37,3 +37,16 @@ test("exports are protected-compatible and filter-aware", async () => {
   assert.match(route, /selectedPage/);
   assert.match(route, /channel,''\)<>'COMMENT'/);
 });
+
+test("multi-platform foundation preserves Pancake while preparing Meta and TikTok", async () => {
+  const [schema, migration, sync, dashboard, page] = await Promise.all([
+    read("db/schema.ts"), read("drizzle/0004_multiplatform_foundation.sql"), read("lib/sync-pancake.ts"),
+    read("app/api/dashboard/route.ts"), read("app/page.tsx"),
+  ]);
+  assert.match(schema, /platformAccounts/);
+  assert.match(schema, /externalRecordId/);
+  assert.match(migration, /UPDATE `leads` SET/);
+  assert.match(sync, /'pancake', 'pancake'/);
+  assert.match(dashboard, /selectedPlatform/);
+  assert.match(page, /every connected messaging and lead platform/);
+});

@@ -10,6 +10,16 @@ export const pancakePages = sqliteTable("pancake_pages", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const platformAccounts = sqliteTable("platform_accounts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  platform: text("platform").notNull(),
+  externalAccountId: text("external_account_id").notNull(),
+  name: text("name").notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  lastSyncedAt: text("last_synced_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("platform_account_unique").on(table.platform, table.externalAccountId)]);
+
 export const leads = sqliteTable("leads", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   pancakePageId: text("pancake_page_id").notNull(),
@@ -17,6 +27,10 @@ export const leads = sqliteTable("leads", {
   customerId: text("customer_id"),
   customerName: text("customer_name"),
   source: text("source").notNull().default("pancake"),
+  platform: text("platform").notNull().default("pancake"),
+  externalAccountId: text("external_account_id"),
+  externalRecordId: text("external_record_id"),
+  sourceType: text("source_type").notNull().default("message"),
   channel: text("channel"),
   country: text("country"),
   stage: text("stage").notNull().default("unclassified"),
@@ -41,6 +55,9 @@ export const leads = sqliteTable("leads", {
   index("lead_page_idx").on(table.pancakePageId),
   index("lead_agent_idx").on(table.assignedAgentId),
   index("lead_sold_at_idx").on(table.soldAt),
+  uniqueIndex("lead_platform_record_unique").on(table.platform, table.externalAccountId, table.externalRecordId),
+  index("lead_platform_idx").on(table.platform),
+  index("lead_platform_account_idx").on(table.platform, table.externalAccountId),
 ]);
 
 export const stageEvents = sqliteTable("stage_events", {

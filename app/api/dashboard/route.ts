@@ -29,21 +29,24 @@ export async function GET(request: Request) {
   const requestedRange = url.searchParams.get("range") as RangeKey | null;
   const range: RangeKey = requestedRange && requestedRange in rangeDays ? requestedRange : "180d";
   const selectedPage = url.searchParams.get("page") ?? "all";
+  const selectedPlatform = url.searchParams.get("platform") ?? "all";
   const { start, end, previousStart, custom } = rangeBounds(range, url.searchParams.get("start"), url.searchParams.get("end"));
   const activity = "COALESCE(last_interaction_at, first_inbound_at)";
-  const pageClause = selectedPage === "all" ? "" : " AND pancake_page_id=?";
-  const bind = <T extends D1PreparedStatement>(statement: T, ...dates: string[]) => statement.bind(...dates, ...(selectedPage === "all" ? [] : [selectedPage]));
-  const currentWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${pageClause}`;
-  const previousWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${pageClause}`;
+  const platformClause = selectedPlatform === "all" ? "" : " AND platform=?";
+  const pageClause = selectedPage === "all" ? "" : " AND COALESCE(external_account_id,pancake_page_id)=?";
+  const filters = [...(selectedPlatform === "all" ? [] : [selectedPlatform]), ...(selectedPage === "all" ? [] : [selectedPage])];
+  const bind = <T extends D1PreparedStatement>(statement: T, ...dates: string[]) => statement.bind(...dates, ...filters);
+  const currentWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
+  const previousWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
 
-  const [summary, previous, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons] = await Promise.all([
+  const [summary, previous, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons, platformRows] = await Promise.all([
     bind(db.prepare(`SELECT COUNT(*) total, SUM(stage='sold') sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${currentWhere}`), start, end).first(),
     bind(db.prepare(`SELECT COUNT(*) total, SUM(stage='sold') sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${previousWhere}`), previousStart, start).first(),
-    bind(db.prepare(`SELECT COUNT(*) total FROM leads WHERE ${activity} >= ? AND ${activity} < ? AND channel='COMMENT'${pageClause}`), start, end).first(),
+    bind(db.prepare(`SELECT COUNT(*) total FROM leads WHERE ${activity} >= ? AND ${activity} < ? AND channel='COMMENT'${platformClause}${pageClause}`), start, end).first(),
     bind(db.prepare(`SELECT stage, COUNT(*) value FROM leads WHERE ${currentWhere} GROUP BY stage ORDER BY value DESC`), start, end).all(),
     bind(db.prepare(`SELECT product_tags, stage FROM leads WHERE ${currentWhere} AND product_tags <> '[]'`), start, end).all(),
     bind(db.prepare(`SELECT raw_tags FROM leads WHERE ${currentWhere} AND raw_tags <> '[]'`), start, end).all(),
@@ -72,6 +75,8 @@ export async function GET(request: Request) {
       WHEN location_tags<>'[]' THEN 'Location tag only'
       ELSE 'Unrecognized tags' END reason, COUNT(*) value
       FROM leads WHERE ${currentWhere} AND (raw_tags='[]' OR stage='unclassified') GROUP BY reason ORDER BY value DESC`), start, end).all(),
+    bind(db.prepare(`SELECT platform, COUNT(*) conversations, SUM(stage='sold') sold, SUM(assigned_agent_id IS NULL) unassigned
+      FROM leads WHERE ${currentWhere} GROUP BY platform ORDER BY conversations DESC`), start, end).all(),
   ]);
 
   const products = productPerformance(productRows.results as Array<{ product_tags: string; stage: string }>);
@@ -82,7 +87,7 @@ export async function GET(request: Request) {
   const previousSummary = numericSummary(previous);
 
   return Response.json({
-    range: { key: range, days: rangeDays[range], cutoff: start, end, custom }, selectedPage,
+    range: { key: range, days: rangeDays[range], cutoff: start, end, custom }, selectedPage, selectedPlatform,
     summary: { ...currentSummary, comments: Number(comments?.total ?? 0), connected: pages.filter((page) => page.status === "success").length, pages: pages.length },
     previous: previousSummary,
     changes: Object.fromEntries(Object.keys(currentSummary).map((key) => [key,
@@ -96,7 +101,7 @@ export async function GET(request: Request) {
       agentPages.results as Array<{ agent: string; pancake_page_id: string; conversations: number }>,
       pageRows.results as Array<{ pancake_page_id: string; conversations: number; sold: number }>,
     ),
-    trend: trend.results, pageHealth: pages, pagePerformance, unclassifiedReasons: reasons.results, sync,
+    trend: trend.results, pageHealth: pages, pagePerformance, platformPerformance: platformRows.results, unclassifiedReasons: reasons.results, sync,
   });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dashboard query failed";
