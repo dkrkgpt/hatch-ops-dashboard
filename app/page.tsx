@@ -135,7 +135,7 @@ export default function Home() {
 
       <section className="kpis" aria-label="Key performance indicators">
         <Kpi label="Private messages" value={loading ? "—" : data.summary.total.toLocaleString()} note={rangeLabels[range]} change={data.changes.total} />
-        <Kpi label="Sold" value={loading ? "—" : data.summary.sold.toLocaleString()} note={`${soldRate.toFixed(1)}% of messages · first SOLD-tag date`} change={data.changes.sold} />
+        <Kpi label="New sales recorded" value={loading ? "—" : data.summary.sold.toLocaleString()} note={`${soldRate.toFixed(1)}% of messages · counts new SOLD tags`} change={data.changes.sold} />
         <Kpi label="Untagged" value={loading ? "—" : data.summary.untagged.toLocaleString()} note="Needs Pancake tags" change={data.changes.untagged} onClick={() => void showDetails("untagged")} />
         <Kpi label="Unassigned" value={loading ? "—" : data.summary.unassigned.toLocaleString()} note="Select to inspect" change={data.changes.unassigned} onClick={() => void showDetails("unassigned")} />
         <Kpi label="Public comments" value={loading ? "—" : data.summary.comments.toLocaleString()} note="Excluded from lead metrics" />

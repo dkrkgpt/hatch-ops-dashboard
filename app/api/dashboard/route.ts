@@ -46,17 +46,14 @@ export async function GET(request: Request) {
   const bind = <T extends D1PreparedStatement>(statement: T, ...dates: string[]) => statement.bind(...dates, ...filters);
   const currentWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
   const previousWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
-  const saleFilter = `COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
 
-  const [summary, previous, currentSales, previousSales, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons, platformRows] = await Promise.all([
+  const [summary, previous, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons, platformRows] = await Promise.all([
     bind(db.prepare(`SELECT COUNT(*) total, SUM(${soldWindow}) sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${currentWhere}`), start, end).first(),
     bind(db.prepare(`SELECT COUNT(*) total, SUM(${previousSoldWindow}) sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${previousWhere}`), previousStart, start).first(),
-    db.prepare(`SELECT COUNT(*) total FROM leads WHERE ${soldWindow} AND ${saleFilter}`).bind(...filters).first(),
-    db.prepare(`SELECT COUNT(*) total FROM leads WHERE ${previousSoldWindow} AND ${saleFilter}`).bind(...filters).first(),
     bind(db.prepare(`SELECT COUNT(*) total FROM leads WHERE ${activity} >= ? AND ${activity} < ? AND channel='COMMENT'${platformClause}${pageClause}`), start, end).first(),
     bind(db.prepare(`SELECT stage, COUNT(*) value FROM leads WHERE ${currentWhere} GROUP BY stage ORDER BY value DESC`), start, end).all(),
     bind(db.prepare(`SELECT product_tags, sold_at FROM leads WHERE ${currentWhere} AND product_tags <> '[]'`), start, end).all(),
@@ -96,8 +93,6 @@ export async function GET(request: Request) {
   const pagePerformance = (pageRows.results as Array<{ pancake_page_id: string; conversations: number; sold: number; untagged: number; unassigned: number }>).map((page) => ({ ...page, name: pageName(page.pancake_page_id) }));
   const currentSummary = numericSummary(summary);
   const previousSummary = numericSummary(previous);
-  currentSummary.sold = Number(currentSales?.total ?? 0);
-  previousSummary.sold = Number(previousSales?.total ?? 0);
 
   return Response.json({
     range: { key: range, days: rangeDays[range], cutoff: start, end, custom }, selectedPage, selectedPlatform,
