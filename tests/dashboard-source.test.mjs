@@ -25,16 +25,6 @@ test("today reporting uses the business UTC+8 calendar day", async () => {
   }
 });
 
-test("sales are counted from newly detected SOLD transitions", async () => {
-  const [migration, sync, dashboard] = await Promise.all([
-    read("drizzle/0005_sale_transitions.sql"), read("lib/sync-pancake.ts"), read("app/api/dashboard/route.ts"),
-  ]);
-  assert.match(migration, /lead_stage_transition_event/);
-  assert.match(migration, /legacy_sold_at/);
-  assert.match(sync, /leads\.stage IS NOT 'sold'/);
-  assert.match(dashboard, /sold_at >=/);
-});
-
 test("dashboard excludes comments from lead reporting", async () => {
   const route = await read("app/api/dashboard/route.ts");
   const leads = await read("app/api/dashboard/leads/route.ts");

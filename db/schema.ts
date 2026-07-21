@@ -43,7 +43,6 @@ export const leads = sqliteTable("leads", {
   lastInteractionAt: text("last_interaction_at"),
   stageChangedAt: text("stage_changed_at"),
   soldAt: text("sold_at"),
-  legacySoldAt: text("legacy_sold_at"),
   nextFollowUpAt: text("next_follow_up_at"),
   rawTags: text("raw_tags").notNull().default("[]"),
   hasConflict: integer("has_conflict", { mode: "boolean" }).notNull().default(false),
