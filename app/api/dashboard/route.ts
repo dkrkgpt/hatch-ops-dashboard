@@ -101,7 +101,7 @@ export async function GET(request: Request) {
     changes: Object.fromEntries(Object.keys(currentSummary).map((key) => [key,
       previousSummary.total >= currentSummary.total * 0.1 ? percentChange(currentSummary[key as keyof typeof currentSummary], previousSummary[key as keyof typeof previousSummary]) : null
     ])),
-    stages: stages.results, products, tags: topEntries(tagCounts, 12), agents: agentPerformance(
+    stages: (stages.results as Array<{ stage: string; value: number }>).map((row) => row.stage === "sold" ? { ...row, value: currentSummary.sold } : row), products, tags: topEntries(tagCounts, 12), agents: agentPerformance(
       agents.results as Array<{ agent: string; conversations: number; sold: number; untagged: number }>,
       previousAgents.results as Array<{ agent: string; conversations: number; sold: number }>,
       currentSummary.sold,
