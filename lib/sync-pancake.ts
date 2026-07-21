@@ -19,12 +19,18 @@ export async function runPancakeSync(db: D1Database, pages: PancakePage[], sourc
           ON CONFLICT(pancake_page_id, conversation_id) DO UPDATE SET
             customer_id=excluded.customer_id, customer_name=excluded.customer_name, source='pancake', platform='pancake',
             external_account_id=excluded.external_account_id, external_record_id=excluded.external_record_id, source_type='message',
-            channel=excluded.channel, stage=excluded.stage,
+            channel=excluded.channel,
+            stage_changed_at=CASE WHEN leads.stage IS NOT excluded.stage THEN CURRENT_TIMESTAMP ELSE leads.stage_changed_at END,
+            sold_at=CASE
+              WHEN excluded.stage='sold' AND leads.stage IS NOT 'sold' THEN CURRENT_TIMESTAMP
+              WHEN excluded.stage<>'sold' THEN NULL
+              ELSE leads.sold_at END,
+            stage=excluded.stage,
             product_tags=excluded.product_tags, location_tags=excluded.location_tags, assigned_agent_id=excluded.assigned_agent_id,
             assigned_agent_name=COALESCE(excluded.assigned_agent_name, leads.assigned_agent_name), first_inbound_at=COALESCE(leads.first_inbound_at, excluded.first_inbound_at),
-            last_interaction_at=excluded.last_interaction_at, sold_at=excluded.sold_at, raw_tags=excluded.raw_tags,
+            last_interaction_at=excluded.last_interaction_at, raw_tags=excluded.raw_tags,
             has_conflict=excluded.has_conflict, updated_at=CURRENT_TIMESTAMP
-        `).bind(lead.pageId, lead.conversationId, lead.customerId, lead.customerName, lead.pageId, lead.conversationId, lead.channel, lead.stage, JSON.stringify(lead.products), JSON.stringify(lead.locations), lead.assignedAgentId, lead.assignedAgentName, lead.firstInboundAt, lead.lastInteractionAt, lead.soldAt, JSON.stringify(lead.rawTags), lead.hasConflict ? 1 : 0));
+        `).bind(lead.pageId, lead.conversationId, lead.customerId, lead.customerName, lead.pageId, lead.conversationId, lead.channel, lead.stage, JSON.stringify(lead.products), JSON.stringify(lead.locations), lead.assignedAgentId, lead.assignedAgentName, lead.firstInboundAt, lead.lastInteractionAt, null, JSON.stringify(lead.rawTags), lead.hasConflict ? 1 : 0));
         if (statements.length) await db.batch(statements);
         updated = statements.length;
         const finishedAt = new Date().toISOString();

@@ -36,6 +36,13 @@
       "when": 1784620800000,
       "tag": "0004_multiplatform_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784707200000,
+      "tag": "0005_sale_transitions",
+      "breakpoints": true
     }
   ]
 }

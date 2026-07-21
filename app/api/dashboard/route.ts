@@ -37,6 +37,8 @@ export async function GET(request: Request) {
   const selectedPage = url.searchParams.get("page") ?? "all";
   const selectedPlatform = url.searchParams.get("platform") ?? "all";
   const { start, end, previousStart, custom } = rangeBounds(range, url.searchParams.get("start"), url.searchParams.get("end"));
+  const soldWindow = `sold_at >= '${start}' AND sold_at < '${end}'`;
+  const previousSoldWindow = `sold_at >= '${previousStart}' AND sold_at < '${start}'`;
   const activity = "COALESCE(last_interaction_at, first_inbound_at)";
   const platformClause = selectedPlatform === "all" ? "" : " AND platform=?";
   const pageClause = selectedPage === "all" ? "" : " AND COALESCE(external_account_id,pancake_page_id)=?";
@@ -46,32 +48,32 @@ export async function GET(request: Request) {
   const previousWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
 
   const [summary, previous, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons, platformRows] = await Promise.all([
-    bind(db.prepare(`SELECT COUNT(*) total, SUM(stage='sold') sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
+    bind(db.prepare(`SELECT COUNT(*) total, SUM(${soldWindow}) sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${currentWhere}`), start, end).first(),
-    bind(db.prepare(`SELECT COUNT(*) total, SUM(stage='sold') sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
+    bind(db.prepare(`SELECT COUNT(*) total, SUM(${previousSoldWindow}) sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${previousWhere}`), previousStart, start).first(),
     bind(db.prepare(`SELECT COUNT(*) total FROM leads WHERE ${activity} >= ? AND ${activity} < ? AND channel='COMMENT'${platformClause}${pageClause}`), start, end).first(),
     bind(db.prepare(`SELECT stage, COUNT(*) value FROM leads WHERE ${currentWhere} GROUP BY stage ORDER BY value DESC`), start, end).all(),
-    bind(db.prepare(`SELECT product_tags, stage FROM leads WHERE ${currentWhere} AND product_tags <> '[]'`), start, end).all(),
+    bind(db.prepare(`SELECT product_tags, sold_at FROM leads WHERE ${currentWhere} AND product_tags <> '[]'`), start, end).all(),
     bind(db.prepare(`SELECT raw_tags FROM leads WHERE ${currentWhere} AND raw_tags <> '[]'`), start, end).all(),
     bind(db.prepare(`SELECT CASE WHEN assigned_agent_id IS NULL THEN 'Unassigned' WHEN assigned_agent_name IS NULL THEN 'Former / unknown agent' ELSE assigned_agent_name END agent,
-      COUNT(*) conversations, SUM(stage='sold') sold, SUM(raw_tags='[]') untagged FROM leads WHERE ${currentWhere}
+      COUNT(*) conversations, SUM(${soldWindow}) sold, SUM(raw_tags='[]') untagged FROM leads WHERE ${currentWhere}
       GROUP BY CASE WHEN assigned_agent_id IS NULL THEN 'Unassigned' WHEN assigned_agent_name IS NULL THEN 'Former / unknown agent' ELSE assigned_agent_name END
       ORDER BY conversations DESC LIMIT 12`), start, end).all(),
     bind(db.prepare(`SELECT CASE WHEN assigned_agent_id IS NULL THEN 'Unassigned' WHEN assigned_agent_name IS NULL THEN 'Former / unknown agent' ELSE assigned_agent_name END agent,
-      COUNT(*) conversations, SUM(stage='sold') sold FROM leads WHERE ${previousWhere}
+      COUNT(*) conversations, SUM(${previousSoldWindow}) sold FROM leads WHERE ${previousWhere}
       GROUP BY CASE WHEN assigned_agent_id IS NULL THEN 'Unassigned' WHEN assigned_agent_name IS NULL THEN 'Former / unknown agent' ELSE assigned_agent_name END`), previousStart, start).all(),
     bind(db.prepare(`SELECT CASE WHEN assigned_agent_id IS NULL THEN 'Unassigned' WHEN assigned_agent_name IS NULL THEN 'Former / unknown agent' ELSE assigned_agent_name END agent,
       pancake_page_id, COUNT(*) conversations FROM leads WHERE ${currentWhere}
       GROUP BY CASE WHEN assigned_agent_id IS NULL THEN 'Unassigned' WHEN assigned_agent_name IS NULL THEN 'Former / unknown agent' ELSE assigned_agent_name END, pancake_page_id`), start, end).all(),
-    bind(db.prepare(`SELECT substr(${activity},1,10) day, COUNT(*) conversations, SUM(stage='sold') sold FROM leads
+    bind(db.prepare(`SELECT substr(${activity},1,10) day, COUNT(*) conversations, SUM(${soldWindow}) sold FROM leads
       WHERE ${currentWhere} GROUP BY substr(${activity},1,10) ORDER BY day`), start, end).all(),
     db.prepare("SELECT finished_at, status, conversations_read, leads_updated, error_message FROM sync_runs ORDER BY id DESC LIMIT 1").first(),
     db.prepare(`SELECT p.id, p.last_synced_at, COALESCE((SELECT status FROM sync_runs s WHERE s.page_id=p.id ORDER BY s.id DESC LIMIT 1),'unknown') status,
       COALESCE((SELECT error_message FROM sync_runs s WHERE s.page_id=p.id ORDER BY s.id DESC LIMIT 1),'') error_message FROM pancake_pages p WHERE p.enabled=1`).all(),
-    db.prepare(`SELECT pancake_page_id, COUNT(*) conversations, SUM(stage='sold') sold, SUM(raw_tags='[]') untagged,
+    db.prepare(`SELECT pancake_page_id, COUNT(*) conversations, SUM(${soldWindow}) sold, SUM(raw_tags='[]') untagged,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${activity} >= ? AND ${activity} < ? AND COALESCE(channel,'') <> 'COMMENT'
       GROUP BY pancake_page_id ORDER BY conversations DESC`).bind(start, end).all(),
     bind(db.prepare(`SELECT CASE
@@ -81,11 +83,11 @@ export async function GET(request: Request) {
       WHEN location_tags<>'[]' THEN 'Location tag only'
       ELSE 'Unrecognized tags' END reason, COUNT(*) value
       FROM leads WHERE ${currentWhere} AND (raw_tags='[]' OR stage='unclassified') GROUP BY reason ORDER BY value DESC`), start, end).all(),
-    bind(db.prepare(`SELECT platform, COUNT(*) conversations, SUM(stage='sold') sold, SUM(assigned_agent_id IS NULL) unassigned
+    bind(db.prepare(`SELECT platform, COUNT(*) conversations, SUM(${soldWindow}) sold, SUM(assigned_agent_id IS NULL) unassigned
       FROM leads WHERE ${currentWhere} GROUP BY platform ORDER BY conversations DESC`), start, end).all(),
   ]);
 
-  const products = productPerformance(productRows.results as Array<{ product_tags: string; stage: string }>);
+  const products = productPerformance(productRows.results as Array<{ product_tags: string; sold_at: string | null }>, start, end);
   const tagCounts = countJsonValues(rawTags.results as Array<{ raw_tags: string }>, "raw_tags");
   const pages = (pageHealth.results as Array<{ id: string; last_synced_at: string | null; status: string; error_message: string }>).map((page) => ({ ...page, name: pageName(page.id) }));
   const pagePerformance = (pageRows.results as Array<{ pancake_page_id: string; conversations: number; sold: number; untagged: number; unassigned: number }>).map((page) => ({ ...page, name: pageName(page.pancake_page_id) }));
@@ -99,7 +101,7 @@ export async function GET(request: Request) {
     changes: Object.fromEntries(Object.keys(currentSummary).map((key) => [key,
       previousSummary.total >= currentSummary.total * 0.1 ? percentChange(currentSummary[key as keyof typeof currentSummary], previousSummary[key as keyof typeof previousSummary]) : null
     ])),
-    stages: stages.results, products, tags: topEntries(tagCounts, 12), agents: agentPerformance(
+    stages: (stages.results as Array<{ stage: string; value: number }>).map((row) => row.stage === "sold" ? { ...row, value: currentSummary.sold } : row), products, tags: topEntries(tagCounts, 12), agents: agentPerformance(
       agents.results as Array<{ agent: string; conversations: number; sold: number; untagged: number }>,
       previousAgents.results as Array<{ agent: string; conversations: number; sold: number }>,
       currentSummary.sold,
@@ -121,5 +123,5 @@ function numericSummary(row: Record<string, unknown> | null) {
 function percentChange(current: number, previous: number) { return previous ? (current - previous) / previous * 100 : current ? 100 : 0; }
 function countJsonValues<T extends Record<string, string>>(rows: T[], key: keyof T) { const counts = new Map<string, number>(); for (const row of rows) { try { for (const name of JSON.parse(row[key])) counts.set(name, (counts.get(name) ?? 0) + 1); } catch {} } return counts; }
 function topEntries(counts: Map<string, number>, limit: number) { return [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, limit); }
-function productPerformance(rows: Array<{ product_tags: string; stage: string }>) { const counts = new Map<string, { value: number; sold: number }>(); for (const row of rows) { try { for (const name of JSON.parse(row.product_tags)) { const item = counts.get(name) ?? { value: 0, sold: 0 }; item.value += 1; if (row.stage === "sold") item.sold += 1; counts.set(name, item); } } catch {} } return [...counts.entries()].map(([name, item]) => ({ name, ...item, rate: item.value ? item.sold / item.value * 100 : 0 })).sort((a,b) => b.value-a.value).slice(0,8); }
+function productPerformance(rows: Array<{ product_tags: string; sold_at: string | null }>, start: string, end: string) { const counts = new Map<string, { value: number; sold: number }>(); for (const row of rows) { try { for (const name of JSON.parse(row.product_tags)) { const item = counts.get(name) ?? { value: 0, sold: 0 }; item.value += 1; if (row.sold_at && row.sold_at >= start && row.sold_at < end) item.sold += 1; counts.set(name, item); } } catch {} } return [...counts.entries()].map(([name, item]) => ({ name, ...item, rate: item.value ? item.sold / item.value * 100 : 0 })).sort((a,b) => b.value-a.value).slice(0,8); }
 function agentPerformance(current: Array<{ agent: string; conversations: number; sold: number; untagged: number }>, previous: Array<{ agent: string; conversations: number; sold: number }>, totalSold: number, comparisonAvailable: boolean, agentPages: Array<{ agent: string; pancake_page_id: string; conversations: number }>, pageRows: Array<{ pancake_page_id: string; conversations: number; sold: number }>) { const prior = new Map(previous.map((row) => [row.agent, row])); const pageRates = new Map(pageRows.map((row) => [row.pancake_page_id, Number(row.conversations) ? Number(row.sold)/Number(row.conversations) : 0])); const expected = new Map<string,number>(); for (const row of agentPages) expected.set(row.agent,(expected.get(row.agent)??0)+Number(row.conversations)*(pageRates.get(row.pancake_page_id)??0)); return current.map((row) => { const old = prior.get(row.agent); const conversations = Number(row.conversations); const sold = Number(row.sold); const previousSold = Number(old?.sold ?? 0); const rate = conversations ? sold/conversations*100 : 0; const expectedRate = conversations ? (expected.get(row.agent)??0)/conversations*100 : 0; return { ...row, conversations, sold, untagged: Number(row.untagged), rate, expectedRate, vsExpected: rate-expectedRate, sampleWarning: conversations<100, targetBand: rate>=5?"Stretch":rate>=4?"Target":rate>=3?"Minimum":"Below minimum", salesShare: totalSold ? sold/totalSold*100 : 0, taggingRate: conversations ? (conversations-Number(row.untagged))/conversations*100 : 0, previousConversations: Number(old?.conversations??0), previousSold, salesChange: comparisonAvailable ? (previousSold ? (sold-previousSold)/previousSold*100 : sold?100:0) : null }; }).sort((a,b) => b.sold-a.sold||b.rate-a.rate).map((row,index)=>({...row,rank:index+1})); }
