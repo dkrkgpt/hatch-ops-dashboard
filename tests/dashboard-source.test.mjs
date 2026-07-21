@@ -8,10 +8,21 @@ const read = (path) => readFile(new URL(path, root), "utf8");
 test("management dashboard includes required reporting controls", async () => {
   const page = await read("app/page.tsx");
   assert.match(page, /type="date"/);
+  assert.match(page, /today: "Today"/);
   assert.match(page, /Export for Excel/);
   assert.match(page, /Executive management insights/);
   assert.match(page, /Page-adjusted expectation/);
   assert.match(page, /3%.*minimum/);
+});
+
+test("today reporting uses the business UTC+8 calendar day", async () => {
+  const [dashboard, leads, exportRoute] = await Promise.all([
+    read("app/api/dashboard/route.ts"), read("app/api/dashboard/leads/route.ts"), read("app/api/dashboard/export/route.ts"),
+  ]);
+  for (const source of [dashboard, leads, exportRoute]) {
+    assert.match(source, /range === "today"/);
+    assert.match(source, /8 \* 60 \* 60 \* 1000/);
+  }
 });
 
 test("dashboard excludes comments from lead reporting", async () => {

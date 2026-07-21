@@ -1,7 +1,7 @@
 import { database } from "../../../lib/pancake";
 import { pageName } from "../../../lib/page-names";
 
-const rangeDays = { "7d": 7, "30d": 30, "90d": 90, "180d": 180 } as const;
+const rangeDays = { today: 1, "7d": 7, "30d": 30, "90d": 90, "180d": 180 } as const;
 type RangeKey = keyof typeof rangeDays;
 
 function rangeBounds(range: RangeKey, customStart?: string | null, customEnd?: string | null) {
@@ -14,6 +14,12 @@ function rangeBounds(range: RangeKey, customStart?: string | null, customEnd?: s
       const previousStart = new Date(start.getTime() - (customEndExclusive.getTime() - start.getTime()));
       return { start: start.toISOString(), end: customEndExclusive.toISOString(), previousStart: previousStart.toISOString(), custom: true };
     }
+  }
+  if (range === "today") {
+    const localNow = new Date(end.getTime() + 8 * 60 * 60 * 1000);
+    const start = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()) - 8 * 60 * 60 * 1000);
+    const previousStart = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+    return { start: start.toISOString(), end: end.toISOString(), previousStart: previousStart.toISOString(), custom: false };
   }
   const start = new Date(end);
   if (range === "90d" || range === "180d") start.setUTCMonth(start.getUTCMonth() - (range === "90d" ? 3 : 6));

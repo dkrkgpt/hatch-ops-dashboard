@@ -18,6 +18,9 @@ export async function GET(request: Request) {
     cutoff.setTime(new Date(`${requestedStart}T00:00:00.000Z`).getTime());
     end.setTime(new Date(`${requestedEnd}T00:00:00.000Z`).getTime());
     end.setUTCDate(end.getUTCDate() + 1);
+  } else if (range === "today") {
+    const localNow = new Date(end.getTime() + 8 * 60 * 60 * 1000);
+    cutoff.setTime(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()) - 8 * 60 * 60 * 1000);
   } else if (range === "90d" || range === "180d") cutoff.setUTCMonth(cutoff.getUTCMonth() - (range === "90d" ? 3 : 6));
   else cutoff.setUTCDate(cutoff.getUTCDate() - (ranges[range] ?? 7));
   const statusClauses: Record<string, string> = {

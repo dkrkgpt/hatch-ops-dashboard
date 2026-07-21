@@ -15,7 +15,10 @@ function bounds(url: URL) {
   const end = new Date();
   const start = new Date(end);
   const range = url.searchParams.get("range") ?? "180d";
-  if (range === "90d" || range === "180d") start.setUTCMonth(start.getUTCMonth() - (range === "90d" ? 3 : 6));
+  if (range === "today") {
+    const localNow = new Date(end.getTime() + 8 * 60 * 60 * 1000);
+    start.setTime(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()) - 8 * 60 * 60 * 1000);
+  } else if (range === "90d" || range === "180d") start.setUTCMonth(start.getUTCMonth() - (range === "90d" ? 3 : 6));
   else start.setUTCDate(start.getUTCDate() - (rangeDays[range] ?? 180));
   return { start, end };
 }

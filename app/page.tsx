@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type RangeKey = "7d" | "30d" | "90d" | "180d";
+type RangeKey = "today" | "7d" | "30d" | "90d" | "180d";
 type DashboardData = {
   range: { key: RangeKey; days: number; cutoff: string; end?: string; custom?: boolean };
   selectedPage: string;
@@ -23,7 +23,7 @@ type DashboardData = {
 };
 
 const stageLabels: Record<string, string> = { engaged: "Engaged", hot_lead: "Hot lead", form_pending: "Form pending", buy_later: "Buy later", sold: "Sold", lost: "Lost", unclassified: "Unclassified" };
-const rangeLabels: Record<RangeKey, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 3 months", "180d": "Last 6 months" };
+const rangeLabels: Record<RangeKey, string> = { today: "Today", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 3 months", "180d": "Last 6 months" };
 const emptyData: DashboardData = { range: { key: "180d", days: 180, cutoff: "" }, selectedPage: "all", summary: { total: 0, sold: 0, attention: 0, unclassified: 0, untagged: 0, conflicts: 0, unassigned: 0, comments: 0, connected: 0, pages: 8 }, previous: { total: 0, sold: 0, unclassified: 0, untagged: 0, conflicts: 0, attention: 0, unassigned: 0 }, changes: {}, stages: [], products: [], tags: [], agents: [], trend: [], pageHealth: [], pagePerformance: [], unclassifiedReasons: [], sync: null };
 
 type QueueStatus = "untagged" | "unclassified" | "unassigned" | "hot_lead" | "form_pending" | "stale";
