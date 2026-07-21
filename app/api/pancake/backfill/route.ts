@@ -45,8 +45,10 @@ export async function POST(request: Request) {
           stage=excluded.stage, product_tags=excluded.product_tags, location_tags=excluded.location_tags,
           assigned_agent_id=excluded.assigned_agent_id, assigned_agent_name=excluded.assigned_agent_name,
           first_inbound_at=COALESCE(leads.first_inbound_at, excluded.first_inbound_at), last_interaction_at=excluded.last_interaction_at,
-          sold_at=excluded.sold_at, raw_tags=excluded.raw_tags, has_conflict=excluded.has_conflict, updated_at=CURRENT_TIMESTAMP
-      `).bind(lead.pageId, lead.conversationId, lead.customerId, lead.customerName, lead.channel, lead.stage, JSON.stringify(lead.products), JSON.stringify(lead.locations), lead.assignedAgentId, lead.assignedAgentName, lead.firstInboundAt, lead.lastInteractionAt, lead.soldAt, JSON.stringify(lead.rawTags), lead.hasConflict ? 1 : 0));
+          stage_changed_at=CASE WHEN leads.stage IS NOT excluded.stage THEN CURRENT_TIMESTAMP ELSE leads.stage_changed_at END,
+          sold_at=CASE WHEN excluded.stage='sold' AND leads.stage IS NOT 'sold' THEN CURRENT_TIMESTAMP WHEN excluded.stage<>'sold' THEN NULL ELSE leads.sold_at END,
+          stage=excluded.stage, raw_tags=excluded.raw_tags, has_conflict=excluded.has_conflict, updated_at=CURRENT_TIMESTAMP
+      `).bind(lead.pageId, lead.conversationId, lead.customerId, lead.customerName, lead.channel, lead.stage, JSON.stringify(lead.products), JSON.stringify(lead.locations), lead.assignedAgentId, lead.assignedAgentName, lead.firstInboundAt, lead.lastInteractionAt, null, JSON.stringify(lead.rawTags), lead.hasConflict ? 1 : 0));
       if (statements.length) await db.batch(statements);
 
       const dated = leads.map((lead) => lead.lastInteractionAt ?? lead.firstInboundAt).filter(Boolean) as string[];
