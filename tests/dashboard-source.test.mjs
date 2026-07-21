@@ -61,3 +61,14 @@ test("multi-platform foundation preserves Pancake while preparing Meta and TikTo
   assert.match(dashboard, /selectedPlatform/);
   assert.match(page, /every connected messaging and lead platform/);
 });
+
+test("verified sales use first SOLD transitions without duplicate conversations", async () => {
+  const [migration, dashboard, page] = await Promise.all([
+    read("drizzle/0005_verified_sales.sql"), read("app/api/dashboard/route.ts"), read("app/page.tsx"),
+  ]);
+  assert.match(migration, /verified_sale_lead_unique/);
+  assert.match(migration, /historical_sold_baseline/);
+  assert.match(migration, /2026-07-21 16:00:00/);
+  assert.match(dashboard, /FROM verified_sales/);
+  assert.match(page, /Verified sold/);
+});

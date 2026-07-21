@@ -80,6 +80,22 @@ export const syncRuns = sqliteTable("sync_runs", {
   errorMessage: text("error_message"),
 });
 
+export const historicalSoldBaseline = sqliteTable("historical_sold_baseline", {
+  leadId: integer("lead_id").primaryKey(),
+  capturedAt: text("captured_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const verifiedSales = sqliteTable("verified_sales", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  leadId: integer("lead_id").notNull(),
+  soldAt: text("sold_at").notNull(),
+  agentId: text("agent_id"), agentName: text("agent_name"), platform: text("platform").notNull(),
+  externalAccountId: text("external_account_id"), pancakePageId: text("pancake_page_id"),
+  productTags: text("product_tags").notNull().default("[]"), locationTags: text("location_tags").notNull().default("[]"),
+  detectionMethod: text("detection_method").notNull().default("tag_transition"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("verified_sale_lead_unique").on(table.leadId), index("verified_sale_date_idx").on(table.soldAt), index("verified_sale_agent_idx").on(table.agentId)]);
+
 export const pancakeBackfillState = sqliteTable("pancake_backfill_state", {
   pageId: text("page_id").primaryKey(),
   cursor: text("cursor"),
