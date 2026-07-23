@@ -72,3 +72,13 @@ test("verified sales use first SOLD transitions without duplicate conversations"
   assert.match(dashboard, /FROM verified_sales/);
   assert.match(page, /Verified sold/);
 });
+
+test("reservations are tracked once from first RESERVATION tag", async () => {
+  const [migration, dashboard, page] = await Promise.all([
+    read("drizzle/0006_verified_reservations.sql"), read("app/api/dashboard/route.ts"), read("app/page.tsx"),
+  ]);
+  assert.match(migration, /verified_reservation_lead_unique/);
+  assert.match(migration, /capture_reservation_update/);
+  assert.match(dashboard, /FROM verified_reservations/);
+  assert.match(page, /Verified reservations/);
+});

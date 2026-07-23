@@ -7,8 +7,8 @@ type DashboardData = {
   range: { key: RangeKey; days: number; cutoff: string; end?: string; custom?: boolean };
   selectedPage: string;
   selectedPlatform?: string;
-  summary: { total: number; sold: number; attention: number; unclassified: number; untagged: number; conflicts: number; unassigned: number; comments: number; connected: number; pages: number };
-  previous: { total: number; sold: number; unclassified: number; untagged: number; conflicts: number; attention: number; unassigned: number };
+  summary: { total: number; sold: number; reservations: number; attention: number; unclassified: number; untagged: number; conflicts: number; unassigned: number; comments: number; connected: number; pages: number };
+  previous: { total: number; sold: number; reservations: number; unclassified: number; untagged: number; conflicts: number; attention: number; unassigned: number };
   changes: Record<string, number | null>;
   stages: Array<{ stage: string; value: number }>;
   products: Array<{ name: string; value: number; sold: number; rate: number }>;
@@ -24,7 +24,7 @@ type DashboardData = {
 
 const stageLabels: Record<string, string> = { engaged: "Engaged", hot_lead: "Hot lead", form_pending: "Form pending", buy_later: "Buy later", sold: "Sold", lost: "Lost", unclassified: "Unclassified" };
 const rangeLabels: Record<RangeKey, string> = { today: "Today", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 3 months", "180d": "Last 6 months" };
-const emptyData: DashboardData = { range: { key: "180d", days: 180, cutoff: "" }, selectedPage: "all", summary: { total: 0, sold: 0, attention: 0, unclassified: 0, untagged: 0, conflicts: 0, unassigned: 0, comments: 0, connected: 0, pages: 8 }, previous: { total: 0, sold: 0, unclassified: 0, untagged: 0, conflicts: 0, attention: 0, unassigned: 0 }, changes: {}, stages: [], products: [], tags: [], agents: [], trend: [], pageHealth: [], pagePerformance: [], unclassifiedReasons: [], sync: null };
+const emptyData: DashboardData = { range: { key: "180d", days: 180, cutoff: "" }, selectedPage: "all", summary: { total: 0, sold: 0, reservations: 0, attention: 0, unclassified: 0, untagged: 0, conflicts: 0, unassigned: 0, comments: 0, connected: 0, pages: 8 }, previous: { total: 0, sold: 0, reservations: 0, unclassified: 0, untagged: 0, conflicts: 0, attention: 0, unassigned: 0 }, changes: {}, stages: [], products: [], tags: [], agents: [], trend: [], pageHealth: [], pagePerformance: [], unclassifiedReasons: [], sync: null };
 
 type QueueStatus = "untagged" | "unclassified" | "unassigned" | "hot_lead" | "form_pending" | "stale";
 type LeadDetail = { pancake_page_id: string; page_name: string; conversation_id: string; customer_name?: string; channel: string; stage: string; assigned_agent_name?: string; product_tags: string; location_tags: string; raw_tags: string; first_inbound_at?: string; last_interaction_at: string; next_follow_up_at?: string };
@@ -136,6 +136,7 @@ export default function Home() {
       <section className="kpis" aria-label="Key performance indicators">
         <Kpi label="Private messages" value={loading ? "—" : data.summary.total.toLocaleString()} note={rangeLabels[range]} change={data.changes.total} />
         <Kpi label="Verified sold" value={loading ? "—" : data.summary.sold.toLocaleString()} note={`${soldRate.toFixed(1)}% conversion · tracked from Jul 22`} change={data.changes.sold} />
+        <Kpi label="Verified reservations" value={loading ? "—" : data.summary.reservations.toLocaleString()} note="First RESERVATION tag only" change={data.changes.reservations} />
         <Kpi label="Untagged" value={loading ? "—" : data.summary.untagged.toLocaleString()} note="Needs Pancake tags" change={data.changes.untagged} onClick={() => void showDetails("untagged")} />
         <Kpi label="Unassigned" value={loading ? "—" : data.summary.unassigned.toLocaleString()} note="Select to inspect" change={data.changes.unassigned} onClick={() => void showDetails("unassigned")} />
         <Kpi label="Public comments" value={loading ? "—" : data.summary.comments.toLocaleString()} note="Excluded from lead metrics" />

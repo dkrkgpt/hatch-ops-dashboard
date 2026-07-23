@@ -96,6 +96,17 @@ export const verifiedSales = sqliteTable("verified_sales", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("verified_sale_lead_unique").on(table.leadId), index("verified_sale_date_idx").on(table.soldAt), index("verified_sale_agent_idx").on(table.agentId)]);
 
+export const historicalReservationBaseline = sqliteTable("historical_reservation_baseline", {
+  leadId: integer("lead_id").primaryKey(), capturedAt: text("captured_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const verifiedReservations = sqliteTable("verified_reservations", {
+  id: integer("id").primaryKey({ autoIncrement: true }), leadId: integer("lead_id").notNull(), reservedAt: text("reserved_at").notNull(),
+  agentId: text("agent_id"), agentName: text("agent_name"), platform: text("platform").notNull(), externalAccountId: text("external_account_id"),
+  pancakePageId: text("pancake_page_id"), productTags: text("product_tags").notNull().default("[]"), locationTags: text("location_tags").notNull().default("[]"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("verified_reservation_lead_unique").on(table.leadId), index("verified_reservation_date_idx").on(table.reservedAt)]);
+
 export const pancakeBackfillState = sqliteTable("pancake_backfill_state", {
   pageId: text("page_id").primaryKey(),
   cursor: text("cursor"),

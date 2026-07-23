@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   const currentWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
   const previousWhere = `${activity} >= ? AND ${activity} < ? AND COALESCE(channel, '') <> 'COMMENT'${platformClause}${pageClause}`;
 
-  const [summary, previous, verifiedCurrent, verifiedPrevious, verifiedAgents, verifiedPreviousAgents, verifiedPages, verifiedProducts, verifiedTrend, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons, platformRows] = await Promise.all([
+  const [summary, previous, verifiedCurrent, verifiedPrevious, reservedCurrent, reservedPrevious, verifiedAgents, verifiedPreviousAgents, verifiedPages, verifiedProducts, verifiedTrend, comments, stages, productRows, rawTags, agents, previousAgents, agentPages, trend, sync, pageHealth, pageRows, reasons, platformRows] = await Promise.all([
     bind(db.prepare(`SELECT COUNT(*) total, SUM(stage='sold') sold, SUM(stage='unclassified') unclassified, SUM(raw_tags='[]') untagged,
       SUM(has_conflict=1) conflicts, SUM(raw_tags='[]' OR has_conflict=1) attention,
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${currentWhere}`), start, end).first(),
@@ -54,6 +54,8 @@ export async function GET(request: Request) {
       SUM(assigned_agent_id IS NULL) unassigned FROM leads WHERE ${previousWhere}`), previousStart, start).first(),
     bind(db.prepare(`SELECT COUNT(*) total FROM verified_sales WHERE sold_at>=? AND sold_at<?${platformClause}${pageClause}`), start, end).first(),
     bind(db.prepare(`SELECT COUNT(*) total FROM verified_sales WHERE sold_at>=? AND sold_at<?${platformClause}${pageClause}`), previousStart, start).first(),
+    bind(db.prepare(`SELECT COUNT(*) total FROM verified_reservations WHERE reserved_at>=? AND reserved_at<?${platformClause}${pageClause}`), start, end).first(),
+    bind(db.prepare(`SELECT COUNT(*) total FROM verified_reservations WHERE reserved_at>=? AND reserved_at<?${platformClause}${pageClause}`), previousStart, start).first(),
     bind(db.prepare(`SELECT COALESCE(agent_name,'Unassigned') agent, COUNT(*) sold FROM verified_sales WHERE sold_at>=? AND sold_at<?${platformClause}${pageClause} GROUP BY COALESCE(agent_name,'Unassigned')`), start, end).all(),
     bind(db.prepare(`SELECT COALESCE(agent_name,'Unassigned') agent, COUNT(*) sold FROM verified_sales WHERE sold_at>=? AND sold_at<?${platformClause}${pageClause} GROUP BY COALESCE(agent_name,'Unassigned')`), previousStart, start).all(),
     bind(db.prepare(`SELECT pancake_page_id, COUNT(*) sold FROM verified_sales WHERE sold_at>=? AND sold_at<?${platformClause}${pageClause} GROUP BY pancake_page_id`), start, end).all(),
@@ -101,6 +103,8 @@ export async function GET(request: Request) {
   const previousSummary = numericSummary(previous);
   currentSummary.sold = Number(verifiedCurrent?.total ?? 0);
   previousSummary.sold = Number(verifiedPrevious?.total ?? 0);
+  currentSummary.reservations = Number(reservedCurrent?.total ?? 0);
+  previousSummary.reservations = Number(reservedPrevious?.total ?? 0);
   const currentAgentRows = mergeAgentSales(agents.results as Array<{ agent: string; conversations: number; sold: number; untagged: number }>, verifiedAgents.results as Array<{ agent: string; sold: number }>);
   const previousAgentRows = mergeAgentSales(previousAgents.results as Array<{ agent: string; conversations: number; sold: number; untagged: number }>, verifiedPreviousAgents.results as Array<{ agent: string; sold: number }>);
   const verifiedTrendMap = new Map((verifiedTrend.results as Array<{ day: string; sold: number }>).map((row) => [row.day, Number(row.sold)]));
@@ -130,7 +134,7 @@ export async function GET(request: Request) {
 }
 
 function numericSummary(row: Record<string, unknown> | null) {
-  return { total: Number(row?.total ?? 0), sold: Number(row?.sold ?? 0), unclassified: Number(row?.unclassified ?? 0), untagged: Number(row?.untagged ?? 0), conflicts: Number(row?.conflicts ?? 0), attention: Number(row?.attention ?? 0), unassigned: Number(row?.unassigned ?? 0) };
+  return { total: Number(row?.total ?? 0), sold: Number(row?.sold ?? 0), reservations: 0, unclassified: Number(row?.unclassified ?? 0), untagged: Number(row?.untagged ?? 0), conflicts: Number(row?.conflicts ?? 0), attention: Number(row?.attention ?? 0), unassigned: Number(row?.unassigned ?? 0) };
 }
 function percentChange(current: number, previous: number) { return previous ? (current - previous) / previous * 100 : current ? 100 : 0; }
 function countJsonValues<T extends Record<string, string>>(rows: T[], key: keyof T) { const counts = new Map<string, number>(); for (const row of rows) { try { for (const name of JSON.parse(row[key])) counts.set(name, (counts.get(name) ?? 0) + 1); } catch {} } return counts; }
